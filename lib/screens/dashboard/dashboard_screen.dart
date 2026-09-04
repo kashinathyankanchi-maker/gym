@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../providers/gym_provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final gymProvider = Provider.of<GymProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -89,9 +93,9 @@ class DashboardScreen extends StatelessWidget {
                         style: TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        '320',
-                        style: TextStyle(
+                      Text(
+                        '${gymProvider.totalMembers}',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
@@ -148,7 +152,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 _buildMetricCard(
                   title: 'Fees Due',
-                  value: '28',
+                  value: '${gymProvider.dueMembers}',
                   subtitle: 'Members',
                   subtitleColor: Colors.grey.shade600,
                   icon: Icons.receipt,
@@ -157,7 +161,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 _buildMetricCard(
                   title: 'Expiring Soon',
-                  value: '14',
+                  value: '${gymProvider.expiredMembers}',
                   subtitle: 'Members',
                   subtitleColor: Colors.grey.shade600,
                   icon: Icons.calendar_today,

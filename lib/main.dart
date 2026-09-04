@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:provider/provider.dart';
+import 'providers/gym_provider.dart';
 import 'screens/main_screen.dart';
 
 void main() {
-  runApp(const HemantGymApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => GymProvider()),
+      ],
+      child: const HemantGymApp(),
+    ),
+  );
 }
 
 class HemantGymApp extends StatelessWidget {

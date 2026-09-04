@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-
+import '../../providers/gym_provider.dart';
+import '../../models/member.dart';
 import 'member_profile_screen.dart';
+import 'add_member_screen.dart';
 
 class MembersScreen extends StatefulWidget {
   const MembersScreen({super.key});
@@ -14,47 +17,20 @@ class _MembersScreenState extends State<MembersScreen> {
   int _selectedTabIndex = 0;
   final List<String> _tabs = ['All', 'Active', 'Expired', 'Suspended'];
 
-  final List<Map<String, dynamic>> _members = [
-    {
-      'name': 'Rahul Kumar',
-      'id': 'GYM1001',
-      'status': 'Active',
-      'avatarUrl': 'https://i.pravatar.cc/150?img=11',
-    },
-    {
-      'name': 'Suresh Patel',
-      'id': 'GYM1002',
-      'status': 'Active',
-      'avatarUrl': 'https://i.pravatar.cc/150?img=12',
-    },
-    {
-      'name': 'Manoj Sharma',
-      'id': 'GYM1003',
-      'status': 'Active',
-      'avatarUrl': 'https://i.pravatar.cc/150?img=13',
-    },
-    {
-      'name': 'Kiran Yadav',
-      'id': 'GYM1004',
-      'status': 'Due',
-      'avatarUrl': 'https://i.pravatar.cc/150?img=5',
-    },
-    {
-      'name': 'Prakash Verma',
-      'id': 'GYM1005',
-      'status': 'Expired',
-      'avatarUrl': 'https://i.pravatar.cc/150?img=15',
-    },
-    {
-      'name': 'Amit Singh',
-      'id': 'GYM1006',
-      'status': 'Active',
-      'avatarUrl': 'https://i.pravatar.cc/150?img=16',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final gymProvider = Provider.of<GymProvider>(context);
+    
+    // Filter members based on tab
+    List<Member> displayMembers = gymProvider.members;
+    if (_selectedTabIndex == 1) {
+      displayMembers = displayMembers.where((m) => m.status == 'Active').toList();
+    } else if (_selectedTabIndex == 2) {
+      displayMembers = displayMembers.where((m) => m.status == 'Expired').toList();
+    } else if (_selectedTabIndex == 3) {
+      displayMembers = displayMembers.where((m) => m.status == 'Suspended').toList();
+    }
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -72,7 +48,12 @@ class _MembersScreenState extends State<MembersScreen> {
               ),
               child: IconButton(
                 icon: const Icon(Icons.add, color: Colors.white),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddMemberScreen()),
+                  );
+                },
               ),
             ),
           )
@@ -147,15 +128,15 @@ class _MembersScreenState extends State<MembersScreen> {
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
-              itemCount: _members.length,
+              itemCount: displayMembers.length,
               separatorBuilder: (context, index) => Divider(color: Colors.grey.shade200, height: 1),
               itemBuilder: (context, index) {
-                final member = _members[index];
+                final member = displayMembers[index];
                 
                 Color statusColor;
-                if (member['status'] == 'Active') {
+                if (member.status == 'Active') {
                   statusColor = Colors.green;
-                } else if (member['status'] == 'Due') {
+                } else if (member.status == 'Due') {
                   statusColor = Colors.orange;
                 } else {
                   statusColor = Colors.red;
@@ -165,21 +146,21 @@ class _MembersScreenState extends State<MembersScreen> {
                   contentPadding: const EdgeInsets.symmetric(vertical: 4),
                   leading: CircleAvatar(
                     radius: 24,
-                    backgroundImage: NetworkImage(member['avatarUrl']),
+                    backgroundImage: NetworkImage(member.avatarUrl),
                   ),
                   title: Text(
-                    member['name'],
+                    member.name,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
-                    'ID: ${member['id']}',
+                    'ID: ${member.id}',
                     style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        member['status'],
+                        member.status,
                         style: TextStyle(
                           color: statusColor,
                           fontWeight: FontWeight.w500,
@@ -194,7 +175,7 @@ class _MembersScreenState extends State<MembersScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => MemberProfileScreen(memberData: member),
+                        builder: (context) => MemberProfileScreen(member: member),
                       ),
                     );
                   },

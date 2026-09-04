@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-
+import 'package:provider/provider.dart';
+import '../../providers/gym_provider.dart';
+import '../../models/member.dart';
 
 class MemberProfileScreen extends StatelessWidget {
-  final Map<String, dynamic> memberData;
+  final Member member;
 
-  const MemberProfileScreen({super.key, required this.memberData});
+  const MemberProfileScreen({super.key, required this.member});
 
   @override
   Widget build(BuildContext context) {
@@ -50,14 +52,14 @@ class MemberProfileScreen extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 36,
-                        backgroundImage: NetworkImage(memberData['avatarUrl']),
+                        backgroundImage: NetworkImage(member.avatarUrl),
                       ),
                       const SizedBox(width: 16),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            memberData['name'],
+                            member.name,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
@@ -66,7 +68,7 @@ class MemberProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'ID: ${memberData['id']}',
+                            'ID: ${member.id}',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.8),
                               fontSize: 14,
@@ -84,15 +86,15 @@ class MemberProfileScreen extends StatelessWidget {
                                 Container(
                                   width: 8,
                                   height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.greenAccent,
+                                  decoration: BoxDecoration(
+                                    color: member.status == 'Active' ? Colors.greenAccent : (member.status == 'Due' ? Colors.orangeAccent : Colors.redAccent),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                const Text(
-                                  'Active Member',
-                                  style: TextStyle(
+                                Text(
+                                  member.status,
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
@@ -148,9 +150,9 @@ class MemberProfileScreen extends StatelessWidget {
                           color: const Color(0xFF6236FF).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text(
-                          'Monthly',
-                          style: TextStyle(
+                        child: Text(
+                          member.plan,
+                          style: const TextStyle(
                             color: Color(0xFF6236FF),
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -160,32 +162,10 @@ class MemberProfileScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildDetailRow('Join Date', '01 Aug 2026'),
-                  _buildDetailRow('Start Date', '01 Aug 2026'),
-                  _buildDetailRow('Expiry Date', '31 Aug 2026'),
-                  _buildDetailRow('Days Left', '30 Days Left'),
-                  const SizedBox(height: 8),
-                  Stack(
-                    children: [
-                      Container(
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                      FractionallySizedBox(
-                        widthFactor: 0.1, // 30 days left out of 30 implies 100% or 0% depending on direction, let's say 10%
-                        child: Container(
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6236FF),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildDetailRow('Join Date', member.joinDate),
+                  _buildDetailRow('Start Date', member.joinDate),
+                  _buildDetailRow('Expiry Date', member.expiryDate),
+                  
                   const SizedBox(height: 32),
                   
                   Row(
@@ -209,9 +189,9 @@ class MemberProfileScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildFeeRow('Total Fees', '₹1,500', Colors.black),
-                  _buildFeeRow('Paid Amount', '₹1,000', Colors.green),
-                  _buildFeeRow('Balance', '₹500', Colors.red),
+                  _buildFeeRow('Total Fees', '₹${member.totalFees.toInt()}', Colors.black),
+                  _buildFeeRow('Paid Amount', '₹${member.paidAmount.toInt()}', Colors.green),
+                  _buildFeeRow('Balance', '₹${member.balance.toInt()}', Colors.red),
                   
                   const SizedBox(height: 32),
                   Row(
@@ -248,6 +228,48 @@ class MemberProfileScreen extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Delete Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete Member'),
+                            content: Text('Are you sure you want to delete ${member.name}?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Provider.of<GymProvider>(context, listen: false).deleteMember(member.id);
+                                  Navigator.pop(ctx); // Close dialog
+                                  Navigator.pop(context); // Close profile screen
+                                },
+                                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.delete),
+                      label: const Text('Delete Member'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 32),
                 ],
