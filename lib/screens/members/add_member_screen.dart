@@ -11,7 +11,7 @@ class AddMemberScreen extends StatefulWidget {
 
 class _AddMemberScreenState extends State<AddMemberScreen> {
   final _nameController = TextEditingController();
-  String _selectedPlan = 'Monthly';
+  String? _selectedPlan;
   String _selectedStatus = 'Active';
 
   @override
@@ -28,10 +28,12 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
       return;
     }
     
+    final planToSave = _selectedPlan ?? 'Monthly Plan';
+
     Provider.of<GymProvider>(context, listen: false).addMember(
       _nameController.text.trim(),
       _selectedStatus,
-      _selectedPlan,
+      planToSave,
     );
     
     Navigator.pop(context);
@@ -39,6 +41,13 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final gymProvider = Provider.of<GymProvider>(context);
+    final plans = gymProvider.membershipPlans;
+
+    if (_selectedPlan == null && plans.isNotEmpty) {
+      _selectedPlan = plans.first.name;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Member'),
@@ -65,10 +74,12 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
               decoration: InputDecoration(
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              items: const [
-                DropdownMenuItem(value: 'Monthly', child: Text('Monthly')),
-                DropdownMenuItem(value: 'Yearly', child: Text('Yearly')),
-              ],
+              items: plans.map((p) {
+                return DropdownMenuItem<String>(
+                  value: p.name,
+                  child: Text('${p.name} (${gymProvider.currencySymbol}${p.price.toInt()})'),
+                );
+              }).toList(),
               onChanged: (val) {
                 if (val != null) setState(() => _selectedPlan = val);
               },

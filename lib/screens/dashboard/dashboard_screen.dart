@@ -143,7 +143,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 _buildMetricCard(
                   title: 'Today\'s Collection',
-                  value: '₹ 24,650',
+                  value: '${gymProvider.currencySymbol} ${gymProvider.totalCollection.toInt()}',
                   subtitle: '+18%',
                   subtitleColor: Colors.green,
                   icon: Icons.account_balance_wallet,
