@@ -283,12 +283,19 @@ class GymProvider extends ChangeNotifier {
       );
     }
 
+    final now = DateTime.now();
+    final hour = now.hour % 12 == 0 ? 12 : now.hour % 12;
+    final minute = now.minute.toString().padLeft(2, '0');
+    final amPm = now.hour >= 12 ? 'PM' : 'AM';
+    final timeStr = '$hour:$minute $amPm';
+
     final newPayment = PaymentRecord(
       id: 'PAY${1000 + Random().nextInt(9000)}',
       memberId: memberId,
       memberName: memberName,
       amount: amount,
       date: dateStr,
+      time: timeStr,
       paymentMethod: paymentMethod,
       notes: notes,
     );

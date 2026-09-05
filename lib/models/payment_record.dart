@@ -4,6 +4,7 @@ class PaymentRecord {
   final String memberName;
   final double amount;
   final String date; // Format: YYYY-MM-DD
+  final String time; // Format: e.g. "02:36 PM"
   final String paymentMethod; // 'Cash', 'UPI', 'Card', 'Other'
   final String notes;
 
@@ -13,6 +14,7 @@ class PaymentRecord {
     required this.memberName,
     required this.amount,
     required this.date,
+    this.time = '',
     required this.paymentMethod,
     this.notes = '',
   });
@@ -23,6 +25,7 @@ class PaymentRecord {
         'memberName': memberName,
         'amount': amount,
         'date': date,
+        'time': time,
         'paymentMethod': paymentMethod,
         'notes': notes,
       };
@@ -33,6 +36,7 @@ class PaymentRecord {
         memberName: json['memberName'] ?? '',
         amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
         date: json['date'] ?? '',
+        time: json['time'] ?? '',
         paymentMethod: json['paymentMethod'] ?? 'Cash',
         notes: json['notes'] ?? '',
       );
