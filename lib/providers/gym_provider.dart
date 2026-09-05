@@ -51,31 +51,29 @@ class GymProvider extends ChangeNotifier {
   // --- CALCULATED DASHBOARD METRICS ---
   int get totalMembers => _members.length;
 
-  int get activeMembers => _members.where((m) => m.status == 'Active').length;
+  int get activeMembers => _members.where((m) => m.computedStatus == 'Active').length;
 
-  int get dueMembers => _members.where((m) => m.status == 'Due' || m.balance > 0).length;
+  int get dueMembers => _members.where((m) => m.computedStatus == 'Due' || m.balance > 0).length;
 
   List<Member> getExpiringSoonMembers() {
-    return _members.where((m) {
-      if (m.status == 'Expired' || m.status == 'Due') return true;
-      // Also check if expiry date is within 7 days
-      try {
-        // parse date format if standard or fallback
-        final parts = m.expiryDate.split(' ');
-        if (parts.length >= 3) {
-          final day = int.tryParse(parts[0]) ?? 1;
-          final year = int.tryParse(parts[2]) ?? DateTime.now().year;
-          // Simple check for demonstration
-          if (day <= DateTime.now().day + 7 && year == DateTime.now().year) {
-            return true;
-          }
-        }
-      } catch (_) {}
-      return false;
-    }).toList();
+    return _members.where((m) => m.computedStatus == 'Expired' || m.computedStatus == 'Due').toList();
   }
 
   int get expiringSoonCount => getExpiringSoonMembers().length;
+
+  // Sequential ID Generator (GYM1007, GYM1008, etc.)
+  String generateNextMemberId() {
+    int maxNum = 1000;
+    for (var m in _members) {
+      if (m.id.startsWith('GYM')) {
+        final numPart = int.tryParse(m.id.replaceAll('GYM', '')) ?? 0;
+        if (numPart > maxNum) {
+          maxNum = numPart;
+        }
+      }
+    }
+    return 'GYM${maxNum + 1}';
+  }
 
   // Today's Attendance Count
   int getTodayPresentCount(String dateStr) {
@@ -106,6 +104,20 @@ class GymProvider extends ChangeNotifier {
     return record.checkInTime;
   }
 
+  // Member Attendance History Count
+  int getMemberPresentDays(String memberId) {
+    return _attendanceRecords.where((a) => a.memberId == memberId && a.status == 'Present').length;
+  }
+
+  int getMemberAbsentDays(String memberId) {
+    return _attendanceRecords.where((a) => a.memberId == memberId && a.status == 'Absent').length;
+  }
+
+  // Member Payment History
+  List<PaymentRecord> getMemberPayments(String memberId) {
+    return _paymentRecords.where((p) => p.memberId == memberId).toList();
+  }
+
   // Today's Fee Collection
   double getTodayCollection(String dateStr) {
     return _paymentRecords
@@ -115,11 +127,10 @@ class GymProvider extends ChangeNotifier {
 
   // Monthly Fee Collection
   double getMonthlyCollection(String yearMonthPrefix) {
-    // yearMonthPrefix e.g. "2026-09"
     final total = _paymentRecords
         .where((p) => p.date.startsWith(yearMonthPrefix))
         .fold(0.0, (sum, item) => sum + item.amount);
-    return total > 0 ? total : 24650.0; // Default baseline if fresh
+    return total > 0 ? total : 24650.0;
   }
 
   // Chart Spots for Monthly Collection
@@ -143,7 +154,6 @@ class GymProvider extends ChangeNotifier {
       }
     }
 
-    // Default curve if empty so chart always looks great
     if (_paymentRecords.isEmpty) {
       return const [
         FlSpot(1, 40000),
@@ -221,13 +231,17 @@ class GymProvider extends ChangeNotifier {
         id: m.id,
         name: m.name,
         phone: m.phone,
+        dob: m.dob,
         status: newStatus,
+        isSuspended: m.isSuspended,
         avatarUrl: m.avatarUrl,
         plan: m.plan,
+        duration: m.duration,
         joinDate: m.joinDate,
         expiryDate: m.expiryDate,
         totalFees: m.totalFees,
         paidAmount: newPaid,
+        notes: m.notes,
       );
     }
 
@@ -246,29 +260,37 @@ class GymProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Member CRUD
+  // Member CRUD & Suspension Toggle
   void addMember({
     required String name,
     required String phone,
+    String dob = '',
     required String plan,
+    String duration = '1 Month',
     required String status,
     required double totalFees,
     required double paidAmount,
     required String joinDate,
     required String expiryDate,
+    String notes = '',
   }) {
-    final randId = 'GYM${1000 + Random().nextInt(9000)}';
+    final nextId = generateNextMemberId();
     final randImgId = 1 + Random().nextInt(70);
+
     final newMember = Member(
-      id: randId,
+      id: nextId,
       name: name,
       phone: phone,
+      dob: dob,
       status: status,
+      isSuspended: status == 'Suspended',
       plan: plan,
+      duration: duration,
       totalFees: totalFees,
       paidAmount: paidAmount,
       joinDate: joinDate,
       expiryDate: expiryDate,
+      notes: notes,
       avatarUrl: 'https://i.pravatar.cc/150?img=$randImgId',
     );
     _members.insert(0, newMember);
@@ -280,6 +302,32 @@ class GymProvider extends ChangeNotifier {
     final index = _members.indexWhere((m) => m.id == member.id);
     if (index != -1) {
       _members[index] = member;
+      _saveToLocal();
+      notifyListeners();
+    }
+  }
+
+  void toggleMemberSuspension(String memberId) {
+    final index = _members.indexWhere((m) => m.id == memberId);
+    if (index != -1) {
+      final m = _members[index];
+      final newSuspended = !m.isSuspended;
+      _members[index] = Member(
+        id: m.id,
+        name: m.name,
+        phone: m.phone,
+        dob: m.dob,
+        status: newSuspended ? 'Suspended' : 'Active',
+        isSuspended: newSuspended,
+        avatarUrl: m.avatarUrl,
+        plan: m.plan,
+        duration: m.duration,
+        joinDate: m.joinDate,
+        expiryDate: m.expiryDate,
+        totalFees: m.totalFees,
+        paidAmount: m.paidAmount,
+        notes: m.notes,
+      );
       _saveToLocal();
       notifyListeners();
     }
@@ -553,7 +601,7 @@ class GymProvider extends ChangeNotifier {
     ];
   }
 
-  // JSON Export / Import Backup
+  // Backup Export / Import
   String exportBackupJson() {
     final data = {
       'version': '1.0',

@@ -17,7 +17,7 @@ class MembersScreen extends StatefulWidget {
 
 class _MembersScreenState extends State<MembersScreen> {
   late int _selectedTabIndex;
-  final List<String> _tabs = ['All', 'Active', 'Due / Expired'];
+  final List<String> _tabs = ['All', 'Active', 'Expired', 'Suspended'];
   String _searchQuery = '';
 
   @override
@@ -39,23 +39,32 @@ class _MembersScreenState extends State<MembersScreen> {
   @override
   Widget build(BuildContext context) {
     final gymProvider = Provider.of<GymProvider>(context);
-    
+
     // Filter members based on tab and search
     List<Member> displayMembers = gymProvider.members.where((m) {
+      final status = m.computedStatus;
       final matchesSearch = m.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           m.id.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           m.phone.contains(_searchQuery);
 
+      if (!matchesSearch) return false;
+
       if (_selectedTabIndex == 1) {
-        return matchesSearch && m.status == 'Active';
+        return status == 'Active';
       } else if (_selectedTabIndex == 2) {
-        return matchesSearch && (m.status == 'Due' || m.status == 'Expired' || m.balance > 0);
+        return status == 'Expired' || status == 'Due';
+      } else if (_selectedTabIndex == 3) {
+        return status == 'Suspended';
       }
-      return matchesSearch;
+      return true; // All
     }).toList();
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {},
+        ),
         title: const Text('Members'),
         actions: [
           Padding(
@@ -103,8 +112,8 @@ class _MembersScreenState extends State<MembersScreen> {
               ),
             ),
           ),
-          
-          // Tabs
+
+          // Filter Buttons (All | Active | Expired | Suspended)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
@@ -159,20 +168,24 @@ class _MembersScreenState extends State<MembersScreen> {
                     separatorBuilder: (context, index) => Divider(color: Colors.grey.shade200, height: 1),
                     itemBuilder: (context, index) {
                       final member = displayMembers[index];
-                      
+                      final status = member.computedStatus;
+
                       Color statusColor;
-                      if (member.status == 'Active') {
+                      if (status == 'Active') {
                         statusColor = Colors.green;
-                      } else if (member.status == 'Due') {
+                      } else if (status == 'Due') {
                         statusColor = Colors.orange;
-                      } else {
+                      } else if (status == 'Expired') {
                         statusColor = Colors.red;
+                      } else {
+                        statusColor = Colors.grey.shade700; // Suspended
                       }
 
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(vertical: 4),
                         leading: CircleAvatar(
                           radius: 24,
+                          backgroundColor: const Color(0xFFEAE4FF),
                           backgroundImage: NetworkImage(member.avatarUrl),
                         ),
                         title: Text(
@@ -180,14 +193,14 @@ class _MembersScreenState extends State<MembersScreen> {
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
-                          'ID: ${member.id} • ${member.plan}',
+                          'ID: ${member.id}',
                           style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              member.status,
+                              status,
                               style: TextStyle(
                                 color: statusColor,
                                 fontWeight: FontWeight.w500,
