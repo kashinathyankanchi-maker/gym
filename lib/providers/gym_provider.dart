@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../models/member.dart';
 import '../models/trainer.dart';
@@ -489,7 +491,100 @@ class GymProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- LOCAL PERSISTENCE ---
+  // --- LOCAL PERSISTENCE & MOBILE STORAGE BACKUP ---
+
+  Future<List<String>> _getBackupTargetFolderPaths() async {
+    List<String> paths = [];
+
+    if (Platform.isAndroid) {
+      paths.add('/storage/emulated/0/Hemant Gym');
+      paths.add('/storage/emulated/0/Documents/Hemant Gym');
+      paths.add('/storage/emulated/0/Download/Hemant Gym');
+    }
+
+    try {
+      final extDir = await getExternalStorageDirectory();
+      if (extDir != null) {
+        paths.add('${extDir.path}/Hemant Gym');
+      }
+    } catch (_) {}
+
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      paths.add('${docDir.path}/Hemant Gym');
+    } catch (_) {}
+
+    try {
+      final dlDir = await getDownloadsDirectory();
+      if (dlDir != null) {
+        paths.add('${dlDir.path}/Hemant Gym');
+      }
+    } catch (_) {}
+
+    return paths.toSet().toList();
+  }
+
+  Future<String?> backupToMobileStorage() async {
+    final jsonStr = exportBackupJson();
+    final folderPaths = await _getBackupTargetFolderPaths();
+    String? primarySavedPath;
+
+    for (var folderPath in folderPaths) {
+      try {
+        final dir = Directory(folderPath);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+
+        final file = File('${dir.path}/hemant_gym_backup.json');
+        await file.writeAsString(jsonStr);
+
+        final legacyFile = File('${dir.path}/backup.json');
+        await legacyFile.writeAsString(jsonStr);
+
+        primarySavedPath ??= file.path;
+      } catch (e) {
+        debugPrint('Could not save backup to $folderPath: $e');
+      }
+    }
+
+    return primarySavedPath;
+  }
+
+  Future<bool> restoreFromMobileStorage() async {
+    final folderPaths = await _getBackupTargetFolderPaths();
+
+    for (var folderPath in folderPaths) {
+      try {
+        final file = File('$folderPath/hemant_gym_backup.json');
+        final legacyFile = File('$folderPath/backup.json');
+
+        File? targetFile;
+        if (await file.exists()) {
+          targetFile = file;
+        } else if (await legacyFile.exists()) {
+          targetFile = legacyFile;
+        }
+
+        if (targetFile != null) {
+          final content = await targetFile.readAsString();
+          if (content.isNotEmpty) {
+            final success = importBackupJson(content, skipAutoSave: true);
+            if (success) {
+              debugPrint('Restored app data successfully from ${targetFile.path}');
+              _saveToSharedPreferencesOnly();
+              return true;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error attempting restore from $folderPath: $e');
+      }
+    }
+
+    return false;
+  }
+
   Future<void> _loadFromLocal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -505,8 +600,18 @@ class GymProvider extends ChangeNotifier {
       if (membersStr != null && membersStr.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(membersStr);
         _members = decoded.map((i) => Member.fromJson(i)).toList();
-      } else {
-        _initDefaultMembers();
+      }
+
+      // If SharedPreferences has no members (e.g. app uninstalled & reinstalled or updated), auto-load from mobile storage folder "Hemant Gym"
+      if (_members.isEmpty) {
+        final restored = await restoreFromMobileStorage();
+        if (restored && _members.isNotEmpty) {
+          debugPrint('Successfully auto-restored old data from mobile storage folder Hemant Gym');
+          notifyListeners();
+          return;
+        } else {
+          _initDefaultMembers();
+        }
       }
 
       // Attendance Records
@@ -514,7 +619,7 @@ class GymProvider extends ChangeNotifier {
       if (attStr != null && attStr.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(attStr);
         _attendanceRecords = decoded.map((i) => AttendanceRecord.fromJson(i)).toList();
-      } else {
+      } else if (_attendanceRecords.isEmpty) {
         _initDefaultAttendance();
       }
 
@@ -523,7 +628,7 @@ class GymProvider extends ChangeNotifier {
       if (payStr != null && payStr.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(payStr);
         _paymentRecords = decoded.map((i) => PaymentRecord.fromJson(i)).toList();
-      } else {
+      } else if (_paymentRecords.isEmpty) {
         _initDefaultPayments();
       }
 
@@ -532,7 +637,7 @@ class GymProvider extends ChangeNotifier {
       if (trainersStr != null && trainersStr.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(trainersStr);
         _trainers = decoded.map((i) => Trainer.fromJson(i)).toList();
-      } else {
+      } else if (_trainers.isEmpty) {
         _initDefaultTrainers();
       }
 
@@ -541,7 +646,7 @@ class GymProvider extends ChangeNotifier {
       if (plansStr != null && plansStr.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(plansStr);
         _membershipPlans = decoded.map((i) => MembershipPlan.fromJson(i)).toList();
-      } else {
+      } else if (_membershipPlans.isEmpty) {
         _initDefaultPlans();
       }
 
@@ -550,7 +655,7 @@ class GymProvider extends ChangeNotifier {
       if (workoutsStr != null && workoutsStr.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(workoutsStr);
         _workouts = decoded.map((i) => Workout.fromJson(i)).toList();
-      } else {
+      } else if (_workouts.isEmpty) {
         _initDefaultWorkouts();
       }
 
@@ -559,7 +664,7 @@ class GymProvider extends ChangeNotifier {
       if (expensesStr != null && expensesStr.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(expensesStr);
         _expenses = decoded.map((i) => Expense.fromJson(i)).toList();
-      } else {
+      } else if (_expenses.isEmpty) {
         _initDefaultExpenses();
       }
 
@@ -570,6 +675,12 @@ class GymProvider extends ChangeNotifier {
   }
 
   Future<void> _saveToLocal() async {
+    await _saveToSharedPreferencesOnly();
+    // Automatically save backup to mobile storage "Hemant Gym" folder
+    backupToMobileStorage();
+  }
+
+  Future<void> _saveToSharedPreferencesOnly() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('gym_name', _gymName);
@@ -669,9 +780,19 @@ class GymProvider extends ChangeNotifier {
     return const JsonEncoder.withIndent('  ').convert(data);
   }
 
-  bool importBackupJson(String rawJson) {
+  bool importBackupJson(String rawJson, {bool skipAutoSave = false}) {
     try {
       final Map<String, dynamic> decoded = jsonDecode(rawJson);
+      if (decoded.containsKey('settings')) {
+        final s = decoded['settings'];
+        if (s is Map) {
+          _gymName = s['gymName'] ?? _gymName;
+          _gymPhone = s['gymPhone'] ?? _gymPhone;
+          _currencySymbol = s['currencySymbol'] ?? _currencySymbol;
+          _isDarkMode = s['isDarkMode'] ?? _isDarkMode;
+          _notificationsEnabled = s['notificationsEnabled'] ?? _notificationsEnabled;
+        }
+      }
       if (decoded.containsKey('members')) {
         _members = (decoded['members'] as List).map((i) => Member.fromJson(i)).toList();
       }
@@ -693,7 +814,9 @@ class GymProvider extends ChangeNotifier {
       if (decoded.containsKey('expenses')) {
         _expenses = (decoded['expenses'] as List).map((i) => Expense.fromJson(i)).toList();
       }
-      _saveToLocal();
+      if (!skipAutoSave) {
+        _saveToLocal();
+      }
       notifyListeners();
       return true;
     } catch (e) {
