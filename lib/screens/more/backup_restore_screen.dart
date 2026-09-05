@@ -172,24 +172,24 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFE8E5FF),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF6236FF).withOpacity(0.3)),
+                border: Border.all(color: const Color(0xFF6236FF)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.folder_special, color: Color(0xFF6236FF), size: 28),
-                  SizedBox(width: 12),
+                  const Icon(Icons.folder_special, color: Color(0xFF6236FF), size: 28),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Mobile Storage Folder: "Hemant Gym"',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF6236FF)),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
                           'All data is automatically backed up to the "Hemant Gym" folder in mobile storage. When you reinstall or update the app, old data is auto-restored!',
-                          style: TextStyle(fontSize: 12, color: Colors.black70),
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
                         ),
                       ],
                     ),
