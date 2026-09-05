@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-
 import 'dashboard/dashboard_screen.dart';
 import 'members/members_screen.dart';
 import 'attendance/attendance_screen.dart';
@@ -8,29 +7,56 @@ import 'fees/fees_screen.dart';
 import 'more/more_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final int initialIndex;
+  final int initialMemberTab;
+
+  const MainScreen({
+    super.key,
+    this.initialIndex = 0,
+    this.initialMemberTab = 0,
+  });
+
+  static void switchTab(BuildContext context, int index, {int memberTab = 0}) {
+    final state = context.findAncestorStateOfType<_MainScreenState>();
+    state?.navigateToTab(index, memberTab: memberTab);
+  }
 
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+  late int _memberTabFilter;
 
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const MembersScreen(),
-    const AttendanceScreen(),
-    const FeesScreen(),
-    const MoreScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _memberTabFilter = widget.initialMemberTab;
+  }
+
+  void navigateToTab(int index, {int memberTab = 0}) {
+    setState(() {
+      _currentIndex = index;
+      _memberTabFilter = memberTab;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> screens = [
+      const DashboardScreen(),
+      MembersScreen(initialTab: _memberTabFilter),
+      const AttendanceScreen(),
+      const FeesScreen(),
+      const MoreScreen(),
+    ];
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens,
+        children: screens,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

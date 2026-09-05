@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../providers/gym_provider.dart';
+import '../main_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -10,12 +10,21 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gymProvider = Provider.of<GymProvider>(context);
+    final todayStr = DateTime.now().toString().split(' ')[0];
+    final yearMonthPrefix = todayStr.substring(0, 7); // e.g. "2026-09"
+
+    final presentToday = gymProvider.getTodayPresentCount(todayStr);
+    final todayColl = gymProvider.getTodayCollection(todayStr);
+    final monthlyColl = gymProvider.getMonthlyCollection(yearMonthPrefix);
+    final chartSpots = gymProvider.getMonthlyChartSpots(yearMonthPrefix);
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.menu),
-          onPressed: () {},
+          onPressed: () {
+            MainScreen.switchTab(context, 4); // Switch to More screen
+          },
         ),
         title: const Text('Dashboard'),
         actions: [
@@ -24,20 +33,21 @@ class DashboardScreen extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.notifications),
-                onPressed: () {},
+                onPressed: () => _showNotificationDialog(context, gymProvider),
               ),
-              Positioned(
-                right: 12,
-                top: 12,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
+              if (gymProvider.dueMembers > 0 || gymProvider.expiringSoonCount > 0)
+                Positioned(
+                  right: 12,
+                  top: 12,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-              )
+                )
             ],
           ),
         ],
@@ -63,7 +73,7 @@ class DashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // Total Members Card
             Container(
               padding: const EdgeInsets.all(20),
@@ -106,7 +116,7 @@ class DashboardScreen extends StatelessWidget {
                         children: [
                           const Icon(Icons.arrow_drop_up, color: Colors.greenAccent, size: 20),
                           Text(
-                            '12 this month',
+                            '${gymProvider.totalMembers} active members',
                             style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
                           ),
                         ],
@@ -132,46 +142,58 @@ class DashboardScreen extends StatelessWidget {
               crossAxisSpacing: 16,
               childAspectRatio: 1.5,
               children: [
-                _buildMetricCard(
-                  title: 'Today\'s Attendance',
-                  value: '162',
-                  subtitle: 'Present',
-                  subtitleColor: Colors.green,
-                  icon: Icons.how_to_reg,
-                  iconColor: Colors.green,
-                  iconBgColor: Colors.green.shade50,
+                GestureDetector(
+                  onTap: () => MainScreen.switchTab(context, 2), // Switch to Attendance
+                  child: _buildMetricCard(
+                    title: 'Today\'s Attendance',
+                    value: '$presentToday',
+                    subtitle: 'Present',
+                    subtitleColor: Colors.green,
+                    icon: Icons.how_to_reg,
+                    iconColor: Colors.green,
+                    iconBgColor: Colors.green.shade50,
+                  ),
                 ),
-                _buildMetricCard(
-                  title: 'Today\'s Collection',
-                  value: '${gymProvider.currencySymbol} ${gymProvider.totalCollection.toInt()}',
-                  subtitle: '+18%',
-                  subtitleColor: Colors.green,
-                  icon: Icons.account_balance_wallet,
-                  iconColor: Colors.blue,
-                  iconBgColor: Colors.blue.shade50,
+                GestureDetector(
+                  onTap: () => MainScreen.switchTab(context, 3), // Switch to Fees
+                  child: _buildMetricCard(
+                    title: 'Today\'s Collection',
+                    value: '${gymProvider.currencySymbol} ${todayColl.toInt()}',
+                    subtitle: 'Collected',
+                    subtitleColor: Colors.green,
+                    icon: Icons.account_balance_wallet,
+                    iconColor: Colors.blue,
+                    iconBgColor: Colors.blue.shade50,
+                  ),
                 ),
-                _buildMetricCard(
-                  title: 'Fees Due',
-                  value: '${gymProvider.dueMembers}',
-                  subtitle: 'Members',
-                  subtitleColor: Colors.grey.shade600,
-                  icon: Icons.receipt,
-                  iconColor: Colors.orange,
-                  iconBgColor: Colors.orange.shade50,
+                GestureDetector(
+                  onTap: () => MainScreen.switchTab(context, 1, memberTab: 2), // Switch to Members Due tab
+                  child: _buildMetricCard(
+                    title: 'Fees Due',
+                    value: '${gymProvider.dueMembers}',
+                    subtitle: 'Members',
+                    subtitleColor: Colors.red,
+                    icon: Icons.receipt,
+                    iconColor: Colors.orange,
+                    iconBgColor: Colors.orange.shade50,
+                  ),
                 ),
-                _buildMetricCard(
-                  title: 'Expiring Soon',
-                  value: '${gymProvider.expiredMembers}',
-                  subtitle: 'Members',
-                  subtitleColor: Colors.grey.shade600,
-                  icon: Icons.calendar_today,
-                  iconColor: Colors.red,
-                  iconBgColor: Colors.red.shade50,
+                GestureDetector(
+                  onTap: () => MainScreen.switchTab(context, 1, memberTab: 2), // Switch to Members Expiring tab
+                  child: _buildMetricCard(
+                    title: 'Expiring Soon',
+                    value: '${gymProvider.expiringSoonCount}',
+                    subtitle: 'Members',
+                    subtitleColor: Colors.orange,
+                    icon: Icons.calendar_today,
+                    iconColor: Colors.red,
+                    iconBgColor: Colors.red.shade50,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            
+
             // Monthly Collection Chart
             const Text(
               'Monthly Collection',
@@ -183,16 +205,16 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                const Text(
-                  '₹ 2,48,500',
-                  style: TextStyle(
+                Text(
+                  '${gymProvider.currencySymbol} ${monthlyColl.toInt()}',
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '+15% from last month',
+                  'Current Month Total',
                   style: TextStyle(
                     color: Colors.green.shade600,
                     fontSize: 12,
@@ -251,15 +273,7 @@ class DashboardScreen extends StatelessWidget {
                   maxY: 200000,
                   lineBarsData: [
                     LineChartBarData(
-                      spots: const [
-                        FlSpot(1, 40000),
-                        FlSpot(5, 50000),
-                        FlSpot(10, 80000),
-                        FlSpot(15, 60000),
-                        FlSpot(20, 110000),
-                        FlSpot(25, 90000),
-                        FlSpot(30, 160000),
-                      ],
+                      spots: chartSpots,
                       isCurved: true,
                       color: const Color(0xFF6236FF),
                       barWidth: 3,
@@ -294,6 +308,49 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showNotificationDialog(BuildContext context, GymProvider provider) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.notifications_active, color: Color(0xFF6236FF)),
+            SizedBox(width: 8),
+            Text('Notifications'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.receipt, color: Colors.orange),
+              title: Text('${provider.dueMembers} Members have fees due'),
+              onTap: () {
+                Navigator.pop(ctx);
+                MainScreen.switchTab(context, 1, memberTab: 2);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today, color: Colors.red),
+              title: Text('${provider.expiringSoonCount} Memberships expiring soon'),
+              onTap: () {
+                Navigator.pop(ctx);
+                MainScreen.switchTab(context, 1, memberTab: 2);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }

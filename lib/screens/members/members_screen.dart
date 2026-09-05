@@ -7,36 +7,55 @@ import 'member_profile_screen.dart';
 import 'add_member_screen.dart';
 
 class MembersScreen extends StatefulWidget {
-  const MembersScreen({super.key});
+  final int initialTab;
+
+  const MembersScreen({super.key, this.initialTab = 0});
 
   @override
   State<MembersScreen> createState() => _MembersScreenState();
 }
 
 class _MembersScreenState extends State<MembersScreen> {
-  int _selectedTabIndex = 0;
-  final List<String> _tabs = ['All', 'Active', 'Expired', 'Suspended'];
+  late int _selectedTabIndex;
+  final List<String> _tabs = ['All', 'Active', 'Due / Expired'];
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTabIndex = widget.initialTab;
+  }
+
+  @override
+  void didUpdateWidget(covariant MembersScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTab != widget.initialTab) {
+      setState(() {
+        _selectedTabIndex = widget.initialTab;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final gymProvider = Provider.of<GymProvider>(context);
     
-    // Filter members based on tab
-    List<Member> displayMembers = gymProvider.members;
-    if (_selectedTabIndex == 1) {
-      displayMembers = displayMembers.where((m) => m.status == 'Active').toList();
-    } else if (_selectedTabIndex == 2) {
-      displayMembers = displayMembers.where((m) => m.status == 'Expired').toList();
-    } else if (_selectedTabIndex == 3) {
-      displayMembers = displayMembers.where((m) => m.status == 'Suspended').toList();
-    }
+    // Filter members based on tab and search
+    List<Member> displayMembers = gymProvider.members.where((m) {
+      final matchesSearch = m.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          m.id.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          m.phone.contains(_searchQuery);
+
+      if (_selectedTabIndex == 1) {
+        return matchesSearch && m.status == 'Active';
+      } else if (_selectedTabIndex == 2) {
+        return matchesSearch && (m.status == 'Due' || m.status == 'Expired' || m.balance > 0);
+      }
+      return matchesSearch;
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {},
-        ),
         title: const Text('Members'),
         actions: [
           Padding(
@@ -65,6 +84,7 @@ class _MembersScreenState extends State<MembersScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: TextField(
+              onChanged: (val) => setState(() => _searchQuery = val),
               decoration: InputDecoration(
                 hintText: 'Search members...',
                 hintStyle: TextStyle(color: Colors.grey.shade400),
@@ -126,62 +146,69 @@ class _MembersScreenState extends State<MembersScreen> {
 
           // Member List
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: displayMembers.length,
-              separatorBuilder: (context, index) => Divider(color: Colors.grey.shade200, height: 1),
-              itemBuilder: (context, index) {
-                final member = displayMembers[index];
-                
-                Color statusColor;
-                if (member.status == 'Active') {
-                  statusColor = Colors.green;
-                } else if (member.status == 'Due') {
-                  statusColor = Colors.orange;
-                } else {
-                  statusColor = Colors.red;
-                }
+            child: displayMembers.isEmpty
+                ? Center(
+                    child: Text(
+                      'No members found',
+                      style: TextStyle(color: Colors.grey.shade500),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: displayMembers.length,
+                    separatorBuilder: (context, index) => Divider(color: Colors.grey.shade200, height: 1),
+                    itemBuilder: (context, index) {
+                      final member = displayMembers[index];
+                      
+                      Color statusColor;
+                      if (member.status == 'Active') {
+                        statusColor = Colors.green;
+                      } else if (member.status == 'Due') {
+                        statusColor = Colors.orange;
+                      } else {
+                        statusColor = Colors.red;
+                      }
 
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                  leading: CircleAvatar(
-                    radius: 24,
-                    backgroundImage: NetworkImage(member.avatarUrl),
-                  ),
-                  title: Text(
-                    member.name,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    'ID: ${member.id}',
-                    style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        member.status,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                        leading: CircleAvatar(
+                          radius: 24,
+                          backgroundImage: NetworkImage(member.avatarUrl),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
-                    ],
+                        title: Text(
+                          member.name,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          'ID: ${member.id} • ${member.plan}',
+                          style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              member.status,
+                              style: TextStyle(
+                                color: statusColor,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
+                          ],
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MemberProfileScreen(member: member),
+                            ),
+                          );
+                        },
+                      );
+                    },
                   ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MemberProfileScreen(member: member),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
           ),
         ],
       ),

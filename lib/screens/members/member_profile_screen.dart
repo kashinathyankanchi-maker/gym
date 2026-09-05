@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/gym_provider.dart';
 import '../../models/member.dart';
+import 'edit_member_screen.dart';
 
 class MemberProfileScreen extends StatelessWidget {
   final Member member;
@@ -10,6 +11,10 @@ class MemberProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final gymProvider = Provider.of<GymProvider>(context);
+    final currentMember = gymProvider.members.firstWhere((m) => m.id == member.id, orElse: () => member);
+    final currency = gymProvider.currencySymbol;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -19,8 +24,15 @@ class MemberProfileScreen extends StatelessWidget {
         title: const Text('Member Profile'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {},
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditMemberScreen(member: currentMember),
+                ),
+              );
+            },
           )
         ],
       ),
@@ -52,14 +64,14 @@ class MemberProfileScreen extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 36,
-                        backgroundImage: NetworkImage(member.avatarUrl),
+                        backgroundImage: NetworkImage(currentMember.avatarUrl),
                       ),
                       const SizedBox(width: 16),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            member.name,
+                            currentMember.name,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
@@ -68,7 +80,7 @@ class MemberProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'ID: ${member.id}',
+                            'ID: ${currentMember.id}',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.8),
                               fontSize: 14,
@@ -87,13 +99,13 @@ class MemberProfileScreen extends StatelessWidget {
                                   width: 8,
                                   height: 8,
                                   decoration: BoxDecoration(
-                                    color: member.status == 'Active' ? Colors.greenAccent : (member.status == 'Due' ? Colors.orangeAccent : Colors.redAccent),
+                                    color: currentMember.status == 'Active' ? Colors.greenAccent : (currentMember.status == 'Due' ? Colors.orangeAccent : Colors.redAccent),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  member.status,
+                                  currentMember.status,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 12,
@@ -151,7 +163,7 @@ class MemberProfileScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          member.plan,
+                          currentMember.plan,
                           style: const TextStyle(
                             color: Color(0xFF6236FF),
                             fontSize: 12,
@@ -162,9 +174,9 @@ class MemberProfileScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildDetailRow('Join Date', member.joinDate),
-                  _buildDetailRow('Start Date', member.joinDate),
-                  _buildDetailRow('Expiry Date', member.expiryDate),
+                  _buildDetailRow('Phone', currentMember.phone),
+                  _buildDetailRow('Join Date', currentMember.joinDate),
+                  _buildDetailRow('Expiry Date', currentMember.expiryDate),
                   
                   const SizedBox(height: 32),
                   
@@ -178,58 +190,14 @@ class MemberProfileScreen extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      Text(
-                        'View All',
-                        style: TextStyle(
-                          color: const Color(0xFF6236FF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildFeeRow('Total Fees', '₹${member.totalFees.toInt()}', Colors.black),
-                  _buildFeeRow('Paid Amount', '₹${member.paidAmount.toInt()}', Colors.green),
-                  _buildFeeRow('Balance', '₹${member.balance.toInt()}', Colors.red),
+                  _buildFeeRow('Total Fees', '$currency${currentMember.totalFees.toInt()}', Colors.black),
+                  _buildFeeRow('Paid Amount', '$currency${currentMember.paidAmount.toInt()}', Colors.green),
+                  _buildFeeRow('Balance', '$currency${currentMember.balance.toInt()}', Colors.red),
                   
                   const SizedBox(height: 32),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.calendar_today),
-                          label: const Text('Attendance'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF6236FF),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.local_activity),
-                          label: const Text('Workout Plan'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E1E2D),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
                   
                   // Delete Button
                   SizedBox(
@@ -240,7 +208,7 @@ class MemberProfileScreen extends StatelessWidget {
                           context: context,
                           builder: (ctx) => AlertDialog(
                             title: const Text('Delete Member'),
-                            content: Text('Are you sure you want to delete ${member.name}?'),
+                            content: Text('Are you sure you want to delete ${currentMember.name}?'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx),
@@ -248,7 +216,7 @@ class MemberProfileScreen extends StatelessWidget {
                               ),
                               TextButton(
                                 onPressed: () {
-                                  Provider.of<GymProvider>(context, listen: false).deleteMember(member.id);
+                                  gymProvider.deleteMember(currentMember.id);
                                   Navigator.pop(ctx); // Close dialog
                                   Navigator.pop(context); // Close profile screen
                                 },
