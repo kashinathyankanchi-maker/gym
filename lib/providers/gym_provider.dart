@@ -186,15 +186,19 @@ class GymProvider extends ChangeNotifier {
     );
 
     final now = DateTime.now();
-    final timeStr = '${now.hour % 12 == 0 ? 12 : now.hour % 12}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
+    final hour = now.hour % 12 == 0 ? 12 : now.hour % 12;
+    final minute = now.minute.toString().padLeft(2, '0');
+    final amPm = now.hour >= 12 ? 'PM' : 'AM';
+    final timeStr = '$hour:$minute $amPm';
 
     if (existingIndex != -1) {
+      final oldRecord = _attendanceRecords[existingIndex];
       _attendanceRecords[existingIndex] = AttendanceRecord(
-        id: _attendanceRecords[existingIndex].id,
+        id: oldRecord.id,
         memberId: memberId,
         date: dateStr,
         status: status,
-        checkInTime: status == 'Present' ? timeStr : '-',
+        checkInTime: status == 'Present' ? (oldRecord.checkInTime != '-' ? oldRecord.checkInTime : timeStr) : '-',
       );
     } else {
       _attendanceRecords.add(AttendanceRecord(
@@ -206,6 +210,40 @@ class GymProvider extends ChangeNotifier {
       ));
     }
 
+    _saveToLocal();
+    notifyListeners();
+  }
+
+  void markAllAttendance(String dateStr, String status) {
+    final now = DateTime.now();
+    final hour = now.hour % 12 == 0 ? 12 : now.hour % 12;
+    final minute = now.minute.toString().padLeft(2, '0');
+    final amPm = now.hour >= 12 ? 'PM' : 'AM';
+    final timeStr = '$hour:$minute $amPm';
+
+    for (var m in _members) {
+      final existingIndex = _attendanceRecords.indexWhere(
+        (a) => a.memberId == m.id && a.date == dateStr,
+      );
+      if (existingIndex != -1) {
+        final oldRecord = _attendanceRecords[existingIndex];
+        _attendanceRecords[existingIndex] = AttendanceRecord(
+          id: oldRecord.id,
+          memberId: m.id,
+          date: dateStr,
+          status: status,
+          checkInTime: status == 'Present' ? (oldRecord.checkInTime != '-' ? oldRecord.checkInTime : timeStr) : '-',
+        );
+      } else {
+        _attendanceRecords.add(AttendanceRecord(
+          id: 'ATT${1000 + Random().nextInt(9000)}',
+          memberId: m.id,
+          date: dateStr,
+          status: status,
+          checkInTime: status == 'Present' ? timeStr : '-',
+        ));
+      }
+    }
     _saveToLocal();
     notifyListeners();
   }
